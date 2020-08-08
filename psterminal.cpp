@@ -246,13 +246,23 @@ void parse_and_send_game_input(PSEngine& p_engine, char input)
     }
 }
 
-void print_centered_text(int y, int x, string text)
+//todo pass a more generic thing than boolean for attributes ?
+void print_centered_text(int y, int x, string text, bool blink = false)
 {
+    if(blink)
+    {
+        attron(A_BLINK);
+    }
     mvprintw(y, x - text.size()/2,"%s", text.c_str());
+    if(blink)
+    {
+        attroff(A_BLINK);
+    }
 }
 
 void display_homescreen(int y, int x)
 {
+    clear();
     int total_color_number = 24; //TODO get this from the array or make it a global variable to make sure everything matches ?
 
     print_centered_text(y, x,"Welcome to Psionic Terminal Edition!");
@@ -306,6 +316,29 @@ void display_homescreen(int y, int x)
     attron(A_BLINK);
     print_centered_text(y,x,"Press Any key to continue");
     attroff(A_BLINK);
+    refresh();
+}
+
+void display_game_home_screen(const CompiledGame* p_compiled_game)
+{
+    if(!p_compiled_game)
+    {
+        //todo find a more robust way to signify this is a dev error.
+        return;
+    }
+
+    clear();
+    int row, col;
+    getmaxyx(stdscr,row,col);
+
+    print_centered_text(2, col/2, p_compiled_game->prelude_info.title.value_or("Err: no title for this game"));
+
+    print_centered_text(4, col/2, "A game by : "+p_compiled_game->prelude_info.title.value_or("Err: no author for this game"));
+
+    print_centered_text(8,col/2, "Press any key to start",true);
+
+    //todo add information about maximum level size and required window size
+    refresh();
 }
 
 int main(int argc, char *argv[])
@@ -369,18 +402,23 @@ int main(int argc, char *argv[])
 
     if(!compiled_game_opt.has_value())
     {
+        //todo we should be able to recover from this error once there is a file selector
+        std::cout << "Sorry, the loaded game doesn't compile properly.\n";
         endwin();
         return 0;
     }
 
     CompiledGame compiled_game = compiled_game_opt.value();
 
-
     PSEngine engine(logger);
     engine.load_game(compiled_game);
+
+    display_game_home_screen(&compiled_game);
+    getch();
+
+
     engine.Load_first_level();
 
-    printw("game loaded !");
 
     display_game_state(&engine,&compiled_game);
 
