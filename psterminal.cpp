@@ -246,6 +246,68 @@ void parse_and_send_game_input(PSEngine& p_engine, char input)
     }
 }
 
+void print_centered_text(int y, int x, string text)
+{
+    mvprintw(y, x - text.size()/2,"%s", text.c_str());
+}
+
+void display_homescreen(int y, int x)
+{
+    int total_color_number = 24; //TODO get this from the array or make it a global variable to make sure everything matches ?
+
+    print_centered_text(y, x,"Welcome to Psionic Terminal Edition!");
+
+    y +=4;
+    print_centered_text(y,x,"Make sure you can see the 24 following colors in the watch below.");
+
+    y += 2;
+    attron(A_STANDOUT);
+    print_centered_text(y,x,"If not, you'll need another terminal that support more color !");
+    attroff(A_STANDOUT);
+
+    y += 2;
+    mvaddch(y,x-4, ACS_ULCORNER);
+    addch( ACS_HLINE );
+    addch( ACS_HLINE );
+    addch( ACS_HLINE );
+    addch( ACS_HLINE );
+    addch(ACS_URCORNER);
+
+    auto color_it = puzzlescript_color_set.begin();
+    for(int i = 0; i < total_color_number/2; ++i)
+    {
+        ++y;
+        pair<string,int> first_color = *color_it;
+        ++color_it;
+        pair<string,int> second_color = *color_it;
+        ++color_it;
+        move(y,x-5-first_color.first.size());
+        printw(first_color.first.c_str());
+        addch(' ');
+        addch(ACS_VLINE);
+        addch(' ' | COLOR_PAIR(first_color.second+1));
+        addch(' ' | COLOR_PAIR(first_color.second+1));
+        addch(' ' | COLOR_PAIR(second_color.second+1));
+        addch(' ' | COLOR_PAIR(second_color.second+1));
+        addch(ACS_VLINE);
+        addch(' ');
+        printw(second_color.first.c_str());
+    }
+
+    ++y;
+    mvaddch(y,x-4, ACS_LLCORNER);
+    addch( ACS_HLINE );
+    addch( ACS_HLINE );
+    addch( ACS_HLINE );
+    addch( ACS_HLINE );
+    addch(ACS_LRCORNER);
+
+    y += 2;
+    attron(A_BLINK);
+    print_centered_text(y,x,"Press Any key to continue");
+    attroff(A_BLINK);
+}
+
 int main(int argc, char *argv[])
 {
     //############
@@ -256,15 +318,36 @@ int main(int argc, char *argv[])
     noecho();
     keypad(stdscr, TRUE);
 
-    printw("Welcome to Psionic Terminal Edition!");
+    int row, col;
+    getmaxyx(stdscr,row,col);
+
+    int min_row = 30;
+    int min_col = 70;
+    if(row < min_row || col < min_col)
+    {
+        endwin();
+        std::cout << "Sorry, your terminal window is to small to display properly psionic.\n";
+        std::cout << "It should be at least 70x30 (and even more dependind on the game you want to play\n";
+        std::cout << "Yours is currently " << col << "x" << row << ".\n";
+        return 0;
+    }
+
 
     std::optional<std::string> spec_error = check_specs();
     if(spec_error.has_value())
     {
-        printw(spec_error.value().c_str());
+        print_centered_text(2, col/2,"Welcome to Psionic Terminal Edition!");
+        print_centered_text(6, col/2, spec_error.value().c_str());
+        print_centered_text(8, col/2, "Press Any key to exit.");
+        refresh();
+        getch();
+        endwin();
+        return 0;
     }
 
     setup_colors();
+
+    display_homescreen(2,col/2);
 
     refresh();
     getch();
