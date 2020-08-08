@@ -28,5 +28,5 @@ ps_engine_sources = ["CompiledGame.cpp","Compiler.cpp","PSEngine.cpp","ParsedGam
 ps_engine_sources = ["Psionic/src/" + f for f in ps_engine_sources]
 
 
-targetDebug = envDebug.Program(target = "#build/debug/psterminal", source = ["psterminal.cpp"] + ps_engine_sources, LIBS=['ncurses','menu'], LIBPATH='.')
+targetDebug = envDebug.Program(target = "#build/debug/psterminal", source = ["psterminal.cpp"] + ps_engine_sources, LIBS=['ncurses'], LIBPATH='.')
 envDebug.Default(targetDebug)

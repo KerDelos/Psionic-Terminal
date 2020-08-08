@@ -88,9 +88,26 @@ std::optional<std::string> check_specs()
     return std::optional<std::string>("Your terminal doesn't support colors!");
 }
 
+//todo pass a more generic thing than boolean for attributes ?
+void print_centered_text(int y, int x, string text, bool blink = false)
+{
+    if(blink)
+    {
+        attron(A_BLINK);
+    }
+    mvprintw(y, x - text.size()/2,"%s", text.c_str());
+    if(blink)
+    {
+        attroff(A_BLINK);
+    }
+}
+
 void setup_colors()
 {
     start_color();
+
+    //todo should this pair index be bases on puzzlescript_color_palette.size() or be an arbitrary int ?
+    init_pair(26,COLOR_WHITE, COLOR_BLACK); //todo default color, make it 1 ? merge it with the black color pair ? could go wrong with different palettes
 
     for(int i = 0; i < puzzlescript_color_palette.size(); ++i)
     {
@@ -131,11 +148,50 @@ vector<vector<string>> get_ordered_level_objects_by_collision_layers(const PSEng
     return result;
 }
 
+void draw_square(int y, int x, int height, int width)
+{
+    mvaddch(y,x,ACS_ULCORNER);
+    mvaddch(y,x+width,ACS_URCORNER);
+    for(int i = y; i <= y+height; ++i)
+    {
+        if(i == y || i == y+height)
+        {
+            for(int j = x+1; j < x+width; ++j)
+            {
+                mvaddch(i,j,ACS_HLINE);
+            }
+        }
+        else
+        {
+            mvaddch(i,x,ACS_VLINE);
+            mvaddch(i,x+width,ACS_VLINE);
+        }
+    }
+    mvaddch(y+height,x,ACS_LLCORNER);
+    mvaddch(y+height,x+width,ACS_LRCORNER);
+}
+
 void display_game_state(PSEngine* p_engine, const CompiledGame* m_compiled_game)
 {
+    clear();
+
     const int PIXEL_NUMBER = 5;
     PSEngine::Level level = p_engine->get_level_state();
     vector<vector<string>> level_content = get_ordered_level_objects_by_collision_layers(p_engine,m_compiled_game);
+
+    int row, col;
+    getmaxyx(stdscr,row,col);
+
+    int x_offset = col/2 - level.width*PIXEL_NUMBER*2/2;
+    int y_offset = 2;
+
+    string top_line = m_compiled_game->prelude_info.title.value_or("Err: no title for this game");
+    top_line += " | current level : " + std::to_string(level.level_idx);
+    mvprintw(0,x_offset,top_line.c_str());
+    draw_square(y_offset-1,x_offset-1,level.height*PIXEL_NUMBER+2,level.width*PIXEL_NUMBER*2+2);
+
+    string bottom_line = "zqsd to move | a to undo | r to restart | y to exit";
+    mvprintw(y_offset+level.height*PIXEL_NUMBER+2,x_offset,bottom_line.c_str());
 
     map<string,CompiledGame::ObjectGraphicData> cached_graphic_data;
     for(const auto& pair : m_compiled_game->graphics_data)
@@ -188,15 +244,18 @@ void display_game_state(PSEngine* p_engine, const CompiledGame* m_compiled_game)
 
                 if(x % 2 == 0)
                 {
-                    mvaddch(y,x,' ');
+                    mvaddch(y+y_offset,x+x_offset,' ');
                 }
                 else
                 {
-                    mvaddch(y,x,'.');
+                    mvaddch(y+y_offset,x+x_offset,' ');
                 }
             }
         }
     }
+    attron(COLOR_PAIR(26));
+
+    refresh();
 }
 
 void parse_and_send_game_input(PSEngine& p_engine, char input)
@@ -243,20 +302,6 @@ void parse_and_send_game_input(PSEngine& p_engine, char input)
     if(input_type != PSEngine::InputType::None)
     {
         p_engine.receive_input(input_type);
-    }
-}
-
-//todo pass a more generic thing than boolean for attributes ?
-void print_centered_text(int y, int x, string text, bool blink = false)
-{
-    if(blink)
-    {
-        attron(A_BLINK);
-    }
-    mvprintw(y, x - text.size()/2,"%s", text.c_str());
-    if(blink)
-    {
-        attroff(A_BLINK);
     }
 }
 
@@ -341,6 +386,20 @@ void display_game_home_screen(const CompiledGame* p_compiled_game)
     refresh();
 }
 
+void display_level_over(const PSEngine* engine,const CompiledGame* compiled_game)
+{
+    clear(); //todo mayebe don't clear it but draw a box around ? and clear the inside of the box
+    int row, col;
+    getmaxyx(stdscr,row,col);
+
+    print_centered_text(1, col/2, "Level Complete !");
+    print_centered_text(4, col/2, "n to load next level");
+    print_centered_text(7, col/2, "r to restart");
+    print_centered_text(9, col/2, "y to exit");
+
+    refresh();
+}
+
 int main(int argc, char *argv[])
 {
     //############
@@ -350,6 +409,7 @@ int main(int argc, char *argv[])
     cbreak();
     noecho();
     keypad(stdscr, TRUE);
+    curs_set(0);
 
     int row, col;
     getmaxyx(stdscr,row,col);
@@ -418,8 +478,6 @@ int main(int argc, char *argv[])
 
 
     engine.Load_first_level();
-
-
     display_game_state(&engine,&compiled_game);
 
 
@@ -431,6 +489,44 @@ int main(int argc, char *argv[])
     {
         parse_and_send_game_input(engine, c);
         display_game_state(&engine,&compiled_game);
+
+        if(engine.is_level_won())
+        {
+            display_level_over(&engine,&compiled_game);
+            do
+            {
+                c = getch();
+            }
+            while(c != 'y' && c !='n' && c != 'r');
+
+            if(c == 'y')
+            {
+                break;
+            }
+            else if( c == 'n')
+            {
+                if(engine.get_level_state().level_idx + 1 == engine.get_number_of_levels())
+                {
+                    clear();
+                    print_centered_text(2, col/2, "This was the last level.");
+                    print_centered_text(4, col/2, "Thank you for playing !");
+                    print_centered_text(6, col/2, "Press Any key to exit.");
+                    refresh();
+                    getch();
+                    break;
+                }
+                else
+                {
+                    engine.load_next_level();
+                    display_game_state(&engine,&compiled_game);
+                }
+            }
+            else if( c == 'r')
+            {
+                engine.load_level(engine.get_level_state().level_idx);
+                display_game_state(&engine,&compiled_game);
+            }
+        }
     }
 
 
