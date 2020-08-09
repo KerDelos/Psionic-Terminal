@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdio>
 #include <chrono>
+#include <filesystem>
 
 
 #include "PSEngine.hpp"
@@ -366,6 +367,149 @@ void display_homescreen(int y, int x)
     refresh();
 }
 
+struct GameFileInfos
+{
+    string directory_path = "";
+    string filename = "";
+    bool compiles = false;
+    int max_level_width = -1;
+    int max_level_height = -1;
+};
+
+vector<GameFileInfos> cache_game_files_infos(string p_directory_path)
+{
+    vector<GameFileInfos> game_files_infos;
+
+    for (const auto & entry : std::filesystem::directory_iterator(p_directory_path))
+    {
+        GameFileInfos current_game;
+        current_game.directory_path = p_directory_path;
+        current_game.filename = entry.path().filename().string();
+
+
+        shared_ptr<PSLogger> logger = make_shared<PSLogger>(PSLogger());
+        logger->only_log_errors = true;
+        ParsedGame parsed_game = Parser::parse_from_file(entry.path().string(), logger).value_or(ParsedGame());
+        Compiler puzzle_compiler(logger);
+        std::optional<CompiledGame> compiled_game_opt  = puzzle_compiler.compile_game(parsed_game);
+        if(compiled_game_opt.has_value())
+        {
+            current_game.compiles = true;
+
+            for(auto level : compiled_game_opt.value().levels)
+            {
+                if(level.width > current_game.max_level_width)
+                {
+                    current_game.max_level_width = level.width;
+                }
+                if(level.height > current_game.max_level_height)
+                {
+                    current_game.max_level_height = level.height;
+                }
+            }
+        }
+        else
+        {
+            current_game.compiles = false;
+        }
+
+
+        game_files_infos.push_back(current_game);
+    }
+
+    return game_files_infos;
+}
+
+void display_file_select_screen(string p_directory_path, const vector<GameFileInfos>& game_infos, int p_current_selected_item)
+{
+    clear();
+    int row, col;
+    getmaxyx(stdscr,row,col);
+
+    int x = 0;
+    int y = 0;
+    string top_line = p_directory_path + " : " + std::to_string(game_infos.size()) + " files found.";
+    mvprintw(y,x,top_line.c_str());
+    ++y;
+    for (int i = 0; i < game_infos.size(); ++i)
+    {
+        const GameFileInfos& current_game = game_infos[i];
+
+        if( i == p_current_selected_item)
+        {
+            attron(A_STANDOUT);
+        }
+        string game_line = current_game.filename + "    ";
+        if(current_game.compiles)
+        {
+            game_line += "+   " + std::to_string(current_game.max_level_width)+"x"+std::to_string(current_game.max_level_height);
+        }
+        else
+        {
+            game_line += "-   ???";
+        }
+
+        mvprintw(y,x,game_line.c_str());
+        if( i == p_current_selected_item)
+        {
+            attroff(A_STANDOUT);
+        }
+        ++y;
+    }
+    refresh();
+}
+
+string file_select_screen(string p_directory_path)
+{
+    vector<GameFileInfos> game_infos = cache_game_files_infos(p_directory_path);
+
+    int current_selected_item = 0;
+
+    char c;
+    do
+    {
+        display_file_select_screen(p_directory_path,game_infos, current_selected_item);
+
+        c = getch();
+
+        switch (c)
+        {
+        case 's':
+            ++ current_selected_item;
+            break;
+        case 'z':
+            -- current_selected_item;
+            break;
+
+        case 'r':
+            game_infos = cache_game_files_infos(p_directory_path);
+            break;
+
+        case 'y':
+            return "";
+
+        default:
+            break;
+        }
+
+        if(current_selected_item < 0)
+        {
+            current_selected_item =0;
+        }
+        else if( current_selected_item >= game_infos.size())
+        {
+            current_selected_item = game_infos.size() - 1;
+        }
+    } while (c != '\n');
+
+    if(current_selected_item < game_infos.size())
+    {
+        return game_infos[current_selected_item].filename;
+    }
+
+    return "";
+}
+
 void display_game_home_screen(const CompiledGame* p_compiled_game)
 {
     if(!p_compiled_game)
@@ -447,12 +591,20 @@ int main(int argc, char *argv[])
     refresh();
     getch();
 
+    string resources_folder_path = "Psionic/resources/";
+
+    string selected_game = file_select_screen(resources_folder_path);
+
+    if(selected_game.empty())
+    {
+        endwin();
+        return 0;
+    }
+
     //############
     //load file and init psengine
     //############
-
-    string resources_folder_path = "Psionic/resources/";
-    string file_name = "zookoban.txt";
+    string file_name = selected_game;
     string file_path = resources_folder_path + file_name;
 
     shared_ptr<PSLogger> logger = make_shared<PSLogger>(PSLogger());
@@ -486,7 +638,8 @@ int main(int argc, char *argv[])
     //############
     //Game Loop
     //############
-    if(compiled_game.prelude_info.realtime_interval.has_value())
+    bool should_tick = compiled_game.prelude_info.realtime_interval.has_value();
+    if(should_tick)
     {
         timeout(compiled_game.prelude_info.realtime_interval.value()*1000/10);
     }
@@ -500,7 +653,10 @@ int main(int argc, char *argv[])
         last_tick_time = current_tick_time;
 
         bool need_screen_refresh = false;
-        need_screen_refresh |= engine.tick(delta_time).has_value();
+        if(should_tick)
+        {
+            need_screen_refresh |= engine.tick(delta_time).has_value();
+        }
         need_screen_refresh |= parse_and_send_game_input(engine, c);
 
         if(need_screen_refresh)
