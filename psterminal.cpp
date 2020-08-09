@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <cstdio>
+#include <chrono>
 
 
 #include "PSEngine.hpp"
@@ -258,22 +259,21 @@ void display_game_state(PSEngine* p_engine, const CompiledGame* m_compiled_game)
     refresh();
 }
 
-void parse_and_send_game_input(PSEngine& p_engine, char input)
+bool parse_and_send_game_input(PSEngine& p_engine, char input)
 {
     if(input == 't')
     {
-        p_engine.tick(0.4);
-        return;
+        return p_engine.tick(0.4).has_value();
     }
     if(input == 'r')
     {
         p_engine.restart_level();
-        return;
+        return true;
     }
     else if(input == 'a')
     {
         p_engine.undo();
-        return;
+        return true;
     }
 
     PSEngine::InputType input_type = PSEngine::InputType::None;
@@ -301,8 +301,10 @@ void parse_and_send_game_input(PSEngine& p_engine, char input)
 
     if(input_type != PSEngine::InputType::None)
     {
-        p_engine.receive_input(input_type);
+        return p_engine.receive_input(input_type).has_value();
     }
+
+    return false;
 }
 
 void display_homescreen(int y, int x)
@@ -420,7 +422,7 @@ int main(int argc, char *argv[])
     {
         endwin();
         std::cout << "Sorry, your terminal window is to small to display properly psionic.\n";
-        std::cout << "It should be at least 70x30 (and even more dependind on the game you want to play\n";
+        std::cout << "It should be at least 70x30 (and even more dependind on the game you want to play)\n";
         std::cout << "Yours is currently " << col << "x" << row << ".\n";
         return 0;
     }
@@ -484,11 +486,30 @@ int main(int argc, char *argv[])
     //############
     //Game Loop
     //############
+    if(compiled_game.prelude_info.realtime_interval.has_value())
+    {
+        timeout(compiled_game.prelude_info.realtime_interval.value()*1000/10);
+    }
+
+    auto last_tick_time = std::chrono::steady_clock::now();
     int c;
     while((c = getch()) != 'y')
     {
-        parse_and_send_game_input(engine, c);
-        display_game_state(&engine,&compiled_game);
+        auto current_tick_time = std::chrono::steady_clock::now();
+        float delta_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_tick_time-last_tick_time).count() / 1000.0;
+        last_tick_time = current_tick_time;
+
+        bool need_screen_refresh = false;
+        need_screen_refresh |= engine.tick(delta_time).has_value();
+        need_screen_refresh |= parse_and_send_game_input(engine, c);
+
+        if(need_screen_refresh)
+        {
+            display_game_state(&engine,&compiled_game);
+        }
+
+        mvprintw(0,0,std::to_string(delta_time).c_str());
+        refresh();
 
         if(engine.is_level_won())
         {
@@ -512,6 +533,7 @@ int main(int argc, char *argv[])
                     print_centered_text(4, col/2, "Thank you for playing !");
                     print_centered_text(6, col/2, "Press Any key to exit.");
                     refresh();
+                    timeout(-1);
                     getch();
                     break;
                 }
