@@ -1,24 +1,12 @@
 #include <thread>
 
-
 #include "ftxui/component/screen_interactive.hpp"
 #include "ftxui/component/container.hpp"
 #include "ftxui/screen/string.hpp"
 
+#include "screens.hpp"
+
 using namespace ftxui;
-
-class PsionicMainScreenComponent : public Component {
-
- public:
-  ~PsionicMainScreenComponent() override {}
-  PsionicMainScreenComponent(){}
-
-
-  Element Render() override {
-    return text(L"Welcome to Psionic with FTXUI") | hcenter;
-  }
-};
-
 
 int main(int argc, const char* argv[]) {
   auto screen = ScreenInteractive::Fullscreen();
@@ -31,7 +19,7 @@ int main(int argc, const char* argv[]) {
     }
   });
 
-  PsionicMainScreenComponent main_screen;
+  PsionicMainComponent main_screen;
   screen.Loop(&main_screen);
 
   return 0;
