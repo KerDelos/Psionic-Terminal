@@ -9,7 +9,12 @@
 #include "ftxui/screen/string.hpp"
 #include "ftxui/component/menu.hpp"
 
+#include "PSEngine.hpp"
+#include "CompiledGame.hpp"
+
 using namespace ftxui;
+
+std::wstring string_to_wstring(std::string p_string);
 
 class PsionicScreen : public Component{
     protected:
@@ -77,6 +82,45 @@ class PsionicGameSelectScreen : public PsionicScreen{
         })
         | hcenter;
     }
+
+    bool OnEvent(Event event) override;
+};
+
+class PsionicGame : public PsionicScreen {
+    GameFileInfos m_selected_game;
+    CompiledGame m_compiled_game;
+    PSEngine m_engine;
+
+    bool displaying_splash = true;
+
+    public:
+    ~PsionicGame()override {}
+    PsionicGame(PsionicMainComponent *p_main_screen) : PsionicScreen(p_main_screen){}
+
+    bool compile_and_load_selected_game();
+
+    void select_game(GameFileInfos p_selected_game)
+    {
+        displaying_splash = true;
+        m_selected_game = p_selected_game;
+
+        compile_and_load_selected_game();
+    }
+
+
+    Element render_game_splash()
+    {
+        return text(string_to_wstring(m_compiled_game.prelude_info.author.value_or("no title")));
+    }
+
+    Element render_game()
+    {
+        return text(L"game");
+    }
+
+    Element Render() override {
+        return displaying_splash ?  render_game_splash() : render_game();
+    }
 };
 
 class PsionicMainComponent : public Component {
@@ -84,16 +128,24 @@ class PsionicMainComponent : public Component {
     public:
     PsionicSplashScreen splash_screen = PsionicSplashScreen(this);
     PsionicGameSelectScreen game_select_screen = PsionicGameSelectScreen(this);
+    PsionicGame game_screen = PsionicGame(this);
 
     std::map<std::string,PsionicScreen*> screens = {
         {"splash", &splash_screen},
-        {"game_select", &game_select_screen}
+        {"game_select", &game_select_screen},
+        {"game", &game_screen},
     };
 
     std::string current_screen = "splash";
 
     Element Render() override {
         return screens[current_screen]->Render();
+    }
+
+    void select_game(GameFileInfos p_game)
+    {
+        game_screen.select_game(p_game);
+        current_screen = "game";
     }
 
     bool request_screen(std::string p_name)
