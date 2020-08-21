@@ -16,6 +16,28 @@ using namespace ftxui;
 
 std::wstring string_to_wstring(std::string p_string);
 
+class GameDisplay : public Node{
+    PSEngine::Level m_level_state;
+    map<string, CompiledGame::ObjectGraphicData> m_graphic_data;
+    vector<vector<string>> m_ordered_level_content;
+public:
+    GameDisplay(PSEngine::Level p_level_state, map<string, CompiledGame::ObjectGraphicData> p_graphic_data,vector<vector<string>> p_ordered_level_content)
+    : m_level_state(p_level_state),
+    m_graphic_data(p_graphic_data),
+    m_ordered_level_content(p_ordered_level_content)
+    {}
+
+    ~GameDisplay() override {}
+
+    void ComputeRequirement() override;
+
+    void Render(Screen& screen) override;
+
+    static Element game_display(PSEngine::Level p_level_state, map<string, CompiledGame::ObjectGraphicData> p_graphic_data,vector<vector<string>> p_ordered_level_content){
+        return std::make_shared<GameDisplay>(p_level_state, p_graphic_data, p_ordered_level_content);
+    } 
+};
+
 class PsionicScreen : public Component{
     protected:
     class PsionicMainComponent* m_main_screen = nullptr;
@@ -90,8 +112,13 @@ class PsionicGame : public PsionicScreen {
     GameFileInfos m_selected_game;
     CompiledGame m_compiled_game;
     PSEngine m_engine;
+    map<string,CompiledGame::ObjectGraphicData> m_cached_graphic_data;
+
+    void cache_graphics_data();
 
     bool displaying_splash = true;
+
+    vector<vector<string>> get_ordered_level_objects_by_collision_layers();
 
     public:
     ~PsionicGame()override {}
@@ -113,13 +140,10 @@ class PsionicGame : public PsionicScreen {
         return text(string_to_wstring(m_compiled_game.prelude_info.author.value_or("no title")));
     }
 
-    Element render_game()
-    {
-        return text(L"game");
-    }
+    Element render_game();
 
     Element Render() override {
-        return displaying_splash ?  render_game_splash() : render_game();
+        return !displaying_splash ?  render_game_splash() : render_game();
     }
 };
 
