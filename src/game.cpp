@@ -1,40 +1,7 @@
-#include "screens.hpp"
+#include "game.hpp"
 
-#include <filesystem>
-
-#include "PSEngine.hpp"
-#include "Compiler.hpp"
 #include "Parser.hpp"
-#include "ParsedGame.hpp"
-#include "CompiledGame.hpp"
-#include "EnumHelpers.hpp"
-
-std::wstring string_to_wstring(std::string p_string)
-{
-    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-    return converter.from_bytes(p_string);
-}
-
-bool PsionicSplashScreen::OnEvent(Event event) {
-    if(event == Event::Custom)
-    {
-        return false;
-    }
-    m_main_screen->request_screen("game_select");
-    return true;
-}
-
-bool PsionicGameSelectScreen::OnEvent(Event event) {
-    if(event == Event::Return)
-    {
-        if( game_select_menu.selected < file_infos.size() )
-        {
-            m_main_screen->select_game(file_infos[game_select_menu.selected]);
-        }
-        return true;
-    }
-    return PsionicScreen::OnEvent(event);
-}
+#include "Compiler.hpp"
 
 bool PsionicGame::compile_and_load_selected_game()
 {
@@ -43,7 +10,7 @@ bool PsionicGame::compile_and_load_selected_game()
     ParsedGame parsed_game = Parser::parse_from_file(m_selected_game.path.string(), logger).value_or(ParsedGame());
     Compiler puzzle_compiler(logger);
     std::optional<CompiledGame> compiled_game_opt  = puzzle_compiler.compile_game(parsed_game);
-    
+
     if(compiled_game_opt.has_value())
     {
         m_compiled_game = compiled_game_opt.value();
@@ -57,7 +24,7 @@ bool PsionicGame::compile_and_load_selected_game()
     {
         return false;
     }
-    
+
 }
 
 void GameDisplay::ComputeRequirement()
@@ -126,7 +93,7 @@ void GameDisplay::Render(Screen& screen)
             for(const string& obj : current_cell)
             {
                 CompiledGame::ObjectGraphicData graphic_data = m_graphic_data[obj];
-                
+
                 Pixel& px = screen.PixelAt(x,y);
 
                 if(graphic_data.pixels.size() == 0)
@@ -151,7 +118,7 @@ void GameDisplay::Render(Screen& screen)
                 }
                 first_layer = false;
 
-                //px.character = 'c';   
+                //px.character = 'c';
             }
         }
     }
@@ -192,48 +159,4 @@ vector<vector<string>> PsionicGame::get_ordered_level_objects_by_collision_layer
 Element PsionicGame::render_game()
 {
     return vbox( {text(L"hello"),GameDisplay::game_display(m_engine.get_level_state(),m_cached_graphic_data,get_ordered_level_objects_by_collision_layers())});
-}
-
-std::vector<GameFileInfos> PsionicGameSelectScreen::cache_game_files_infos(std::string p_directory_path)
-{
-    std::vector<GameFileInfos> game_files_infos;
-
-    for (const auto & entry : std::filesystem::directory_iterator(p_directory_path))
-    {
-        GameFileInfos current_game;
-        current_game.path = entry.path();
-
-
-
-        shared_ptr<PSLogger> logger = make_shared<PSLogger>(PSLogger());
-        logger->only_log_errors = true;
-        ParsedGame parsed_game = Parser::parse_from_file(entry.path().string(), logger).value_or(ParsedGame());
-        Compiler puzzle_compiler(logger);
-        std::optional<CompiledGame> compiled_game_opt  = puzzle_compiler.compile_game(parsed_game);
-        if(compiled_game_opt.has_value())
-        {
-            current_game.compiles = true;
-
-            for(auto level : compiled_game_opt.value().levels)
-            {
-                if(level.width > current_game.max_level_width)
-                {
-                    current_game.max_level_width = level.width;
-                }
-                if(level.height > current_game.max_level_height)
-                {
-                    current_game.max_level_height = level.height;
-                }
-            }
-        }
-        else
-        {
-            current_game.compiles = false;
-        }
-
-
-        game_files_infos.push_back(current_game);
-    }
-
-    return game_files_infos;
 }

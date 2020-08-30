@@ -4,7 +4,7 @@
 #include "ftxui/component/container.hpp"
 #include "ftxui/screen/string.hpp"
 
-#include "screens.hpp"
+#include "psionic_main_component.hpp"
 
 using namespace ftxui;
 

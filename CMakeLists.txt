@@ -32,7 +32,14 @@ project(psionic-terminal
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-add_executable(psionic-terminal main.cpp src/screens.cpp)
+add_executable(psionic-terminal main.cpp
+  src/utils.cpp
+  src/psionic_main_component.cpp
+  src/psionic_screen.cpp
+  src/game_select.cpp
+  src/splash_screen.cpp
+  src/game.cpp
+)
 
 target_link_libraries(psionic-terminal
   PRIVATE ftxui::screen
