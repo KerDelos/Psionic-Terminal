@@ -30,6 +30,8 @@ project(psionic-terminal
   VERSION 1.0.0
 )
 
+set(CMAKE_BUILD_TYPE Debug)
+
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 add_executable(psionic-terminal main.cpp

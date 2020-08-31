@@ -34,16 +34,23 @@ public:
 };
 
 class PsionicGame : public PsionicScreen {
+    enum class GameScreenType {
+        None,
+        Splash,
+        Game,
+        Pause,
+        LevelComplete,
+        GameComplete,
+    };
+
     GameFileInfos m_selected_game;
     CompiledGame m_compiled_game;
     PSEngine m_engine;
     map<string,CompiledGame::ObjectGraphicData> m_cached_graphic_data;
+    GameScreenType m_current_screen = GameScreenType::None;
 
     void cache_graphics_data();
-
-    bool displaying_splash = true;
-
-    vector<vector<string>> get_ordered_level_objects_by_collision_layers();
+    vector<vector<string>> get_ordered_level_objects_by_collision_layers(); //todo i should probably move this to the psionic lib
 
     public:
     ~PsionicGame()override {}
@@ -53,22 +60,39 @@ class PsionicGame : public PsionicScreen {
 
     void select_game(GameFileInfos p_selected_game)
     {
-        displaying_splash = true;
+        m_current_screen = GameScreenType::Splash;
         m_selected_game = p_selected_game;
 
         compile_and_load_selected_game();
     }
 
+    bool OnEvent(Event event) override;
 
-    Element render_game_splash()
-    {
-        return text(string_to_wstring(m_compiled_game.prelude_info.author.value_or("no title")));
-    }
-
+    Element render_none();
+    Element render_splash();
     Element render_game();
+    Element render_pause();
+    Element render_level_complete();
+    Element render_game_complete();
 
     Element Render() override {
-        return !displaying_splash ?  render_game_splash() : render_game();
+        switch(m_current_screen)
+        {
+            case GameScreenType::None:
+                return render_none();
+            case GameScreenType::Splash:
+                return render_splash();
+            case GameScreenType::Game:
+                return render_game();
+            case GameScreenType::Pause:
+                return render_pause();
+            case GameScreenType::LevelComplete:
+                return render_level_complete();
+            case GameScreenType::GameComplete:
+                return render_game_complete();
+            default:
+                return render_none();
+        }
     }
 };
 

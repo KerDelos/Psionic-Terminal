@@ -156,7 +156,135 @@ vector<vector<string>> PsionicGame::get_ordered_level_objects_by_collision_layer
     return result;
 }
 
+bool PsionicGame::OnEvent(Event event)
+{
+    std::cout << "on event";
+    if(event == Event::Return)
+    {
+        if(m_current_screen == GameScreenType::Splash)
+        {
+            m_current_screen = GameScreenType::Game;
+            return true;
+        }
+        else if(m_current_screen == GameScreenType::GameComplete)
+        {
+            //todo return to game select ?
+            //m_current_screen = GameScreenType::Game;
+            return true;
+        }
+    }
+    else if(event == Event::Escape)
+    {
+        //todo display or hide the pause menu
+        return true;
+    }
+    else if( event.is_character())
+    {
+        if(m_current_screen == GameScreenType::Game)
+        {
+            bool event_handled = false;
+
+            switch(event.character())
+            {
+                case 'r':
+                    m_engine.restart_level();
+                    event_handled = true;
+                    break;
+                case 'a':
+                    m_engine.undo();
+                    event_handled = true;
+                    break;
+                case 'z':
+                    m_engine.receive_input(PSEngine::InputType::Up);
+                    event_handled = true;
+                    break;
+                case 'q':
+                    m_engine.receive_input(PSEngine::InputType::Left);
+                    event_handled = true;
+                    break;
+                case 's':
+                    m_engine.receive_input(PSEngine::InputType::Down);
+                    event_handled = true;
+                    break;
+                case 'd':
+                    m_engine.receive_input(PSEngine::InputType::Right);
+                    event_handled = true;
+                    break;
+                case 'e':
+                    m_engine.receive_input(PSEngine::InputType::Action);
+                    event_handled = true;
+                    break;
+            }
+
+            if(event_handled)
+            {
+                if(m_engine.is_level_won())
+                {
+                    //todo there should be a method to access directly the current level idx
+                    if(m_engine.get_level_state().level_idx == m_engine.get_number_of_levels() - 1 )
+                    {
+                        m_current_screen = GameScreenType::GameComplete;
+                    }
+                    else
+                    {
+                        m_current_screen = GameScreenType::LevelComplete;
+                    }
+                }
+
+                return true;
+            }
+
+        }
+        else if( m_current_screen == GameScreenType::LevelComplete)
+        {
+            switch(event.character())
+            {
+                case 'r':
+                    m_engine.restart_level();
+                    m_current_screen = GameScreenType::Game;
+                    return true;
+                case 'n':
+                    m_engine.load_next_level();
+                    m_current_screen = GameScreenType::Game;
+                    return true;
+            }
+        }
+    }
+
+
+    return PsionicScreen::OnEvent(event);
+}
+
+Element PsionicGame::render_none()
+{
+    return text(L"error: m_current_screen has an invalid value");
+}
+
+Element PsionicGame::render_splash()
+{
+    return text(string_to_wstring(m_compiled_game.prelude_info.author.value_or("no title")));
+}
+
 Element PsionicGame::render_game()
 {
     return vbox( {text(L"hello"),GameDisplay::game_display(m_engine.get_level_state(),m_cached_graphic_data,get_ordered_level_objects_by_collision_layers())});
+}
+
+Element PsionicGame::render_pause()
+{
+    return text(L"pause"); //todo maybe this should be a dialog box instead ?
+}
+
+Element PsionicGame::render_level_complete()
+{
+    return vbox(
+        text(L"Level Complete"),
+        text(L"n : next level"),
+        text(L"r : restart")
+    );
+}
+
+Element PsionicGame::render_game_complete()
+{
+    return text(L"Game Complete");
 }
