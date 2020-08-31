@@ -215,11 +215,11 @@ late [ Star StarHole No Fallen ] -> [ FallenStar StarHole ]
 late [ Cross CubeHole No Fallen ] -> [ FallenCross CubeHole ]
 late [ Cross CrossHole No Fallen ] -> [ FallenCross CrossHole ]
 
-(late [ Button No Player ] [ OpenDoor No Player No Movable ] -> [ Button ] [ Door ]
+late [ Button No Player ] [ OpenDoor No Player No Movable ] -> [ Button ] [ Door ]
 late [ Button No Movable ] [ OpenDoor No Player No Movable ] -> [ Button ] [ Door ]
 
 late [ Player Button ] [ Door ] -> [ Player Button ] [ OpenDoor ]
-late [ Movable Button ] [ Door ] -> [ Movable Button ] [ OpenDoor ])
+late [ Movable Button ] [ Door ] -> [ Movable Button ] [ OpenDoor ]
 
 ==============
 WINCONDITIONS
