@@ -37,43 +37,37 @@ void GameDisplay::ComputeRequirement()
     requirement_.min_y = 3;
 }
 
-map<string,Color> puzzlescript_color_set = {
-	{"Black",Color::Black},
-	{"White",Color::White},
-	{"Grey",Color::GrayDark},
-	{"DarkGrey",Color::GrayDark},
-	{"LightGrey",Color::GrayLight},
-	{"Gray",Color::GrayLight},
-	{"DarkGray",Color::GrayDark},
-	{"LightGray",Color::GrayLight},
-	{"Red",Color::Red},
-	{"DarkRed",Color::Red},
-	{"LightRed",Color::RedLight},
-	{"Brown",Color::Red},
-	{"DarkBrown",Color::Red},
-	{"LightBrown",Color::Red},
-	{"Orange",Color::Red},
-	{"Yellow",Color::Yellow},
-	{"Green",Color::Green},
-	{"DarkGreen",Color::Green},
-	{"LightGreen",Color::GreenLight},
-	{"Blue",Color::Blue},
-	{"LightBlue",Color::BlueLight},
-	{"DarkBlue",Color::Blue},
-	{"Purple",Color::Magenta},
-	{"Pink",Color::MagentaLight}
-};
+
 
 void GameDisplay::Render(Screen& screen)
 {
-    Pixel& topleft = screen.PixelAt(box_.x_min,box_.y_min);
-    topleft.background_color = Color::Cyan;
-    topleft.character = 'T';
-    screen.at(box_.x_max,box_.y_min) = 'T';
-    screen.at(box_.x_min,box_.y_max) = 'T';
-    screen.at(box_.x_max,box_.y_max) = 'T';
-
     const int PIXEL_NUMBER = 5;
+
+    map<string,Color> puzzlescript_color_set = {
+	{"Black",Color::RGB(0,0,0)},
+	{"White",Color::RGB(255,255,255)},
+	{"Grey",Color::RGB(157,157,157)},
+	{"DarkGrey",Color::RGB(105,113,117)},
+	{"LightGrey",Color::RGB(204,204,204)},
+	{"Gray",Color::RGB(157,157,157)},
+	{"DarkGray",Color::RGB(105,113,117)},
+	{"LightGray",Color::RGB(204,204,204)},
+	{"Red",Color::RGB(190,38,51)},
+	{"DarkRed",Color::RGB(115,41,48)},
+	{"LightRed",Color::RGB(224,111,139)},
+	{"Brown",Color::RGB(164,100,34)},
+	{"DarkBrown",Color::RGB(73,60,43)},
+	{"LightBrown",Color::RGB(238,182,47)},
+	{"Orange",Color::RGB(235,137,49)},
+	{"Yellow",Color::RGB(247,226,107)},
+	{"Green",Color::RGB(68,137,26)},
+	{"DarkGreen",Color::RGB(47,72,78)},
+	{"LightGreen",Color::RGB(163,206,39)},
+	{"Blue",Color::RGB(29,87,247)},
+	{"LightBlue",Color::RGB(178,220,239)},
+	{"DarkBlue",Color::RGB(27,38,50)},
+	{"Purple",Color::RGB(52,42,151)},
+	{"Pink",Color::RGB(222,101,226)}};
 
     for(int x = 0 ; x < m_level_state.width*PIXEL_NUMBER*2; ++x)
     {
@@ -94,11 +88,18 @@ void GameDisplay::Render(Screen& screen)
             {
                 CompiledGame::ObjectGraphicData graphic_data = m_graphic_data[obj];
 
-                Pixel& px = screen.PixelAt(x,y);
+                Pixel& px = screen.PixelAt(x+box_.x_min,y+box_.y_min);
+
+                if(y+box_.x_min > box_.x_max || y+box_.y_min > box_.y_max)
+                {
+                    //out of bounds
+                    continue;
+                }
 
                 if(graphic_data.pixels.size() == 0)
                 {
-                    px.background_color = puzzlescript_color_set[enum_to_str(graphic_data.colors[0].name,CompiledGame::to_color_name).value_or("black")];
+                    //if there is no pixel data it means the object is juste a plain color. Use the first one to draw it
+                    px.background_color = puzzlescript_color_set.find(enum_to_str(graphic_data.colors[0].name,CompiledGame::to_color_name).value_or("black"))->second;
                 }
                 else
                 {
@@ -112,13 +113,13 @@ void GameDisplay::Render(Screen& screen)
                     }
                     else
                     {
-                        px.background_color = puzzlescript_color_set[enum_to_str(graphic_data.colors[pixel_color].name,CompiledGame::to_color_name).value_or("black")];
+                        string colorName = enum_to_str(graphic_data.colors[pixel_color].name,CompiledGame::to_color_name).value_or("black");
+                        Color colorselected = puzzlescript_color_set.find(colorName)->second;
+                        px.background_color = colorselected;
                     }
 
                 }
                 first_layer = false;
-
-                //px.character = 'c';
             }
         }
     }
